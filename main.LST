@@ -1,0 +1,209 @@
+C51 COMPILER V9.59.0.0   MAIN                                                              06/19/2020 11:43:23 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          /*******************************************************************************
+   2          注意事项：
+   3          根据自己使用的LCD1602是否带有转接板，如果带有转接板的即为4位，需在LCD.H头文件中
+   4          将宏#define LCD1602_4PINS打开，我们这里使用的LCD1602是8位，所以默认将该宏注释。
+   5          
+   6          接线说明：（开发攻略每个实验章节内的实验现象都有对应的接线图说明）
+   7          LCD1602接线参考LCD1602液晶显示实验接线图
+   8          DS18B20传感器接线参考DS18B20温度传感器实验接线图
+   9          
+  10          
+  11          
+  12          实验操作：
+  13          LCD1602上显示采集的温度，同时
+  14          打开串口调试助手，将串口波特率选择4800，打开串口，此时在串口上就会显示采集的温度，串口截图参考文件夹下。
+  15          *******************************************************************************/
+  16          
+  17          #include<reg51.h>
+  18          #include"lcd.h"
+  19          #include"temp.h"
+  20          #include"bluetooth.h"
+  21          uchar CNCHAR[6] = "摄氏度";
+  22          void LcdDisplay(int);
+  23          void UsartConfiguration();
+  24          uchar recv_data ;
+  25          void lightControl();
+  26          /*******************************************************************************
+  27          * 函数名         : main
+  28          * 函数功能       : 主函数
+  29          * 输入           : 无
+  30          * 输出           : 无
+  31          *******************************************************************************/
+  32          
+  33          void main()
+  34          {
+  35   1        UsartConfiguration();
+  36   1        LcdInit();       //初始化LCD1602
+  37   1        //LcdWriteData('C'); 
+  38   1        while(1){
+  39   2          string(0x80,"temperature");
+  40   2          LcdWriteCom(0xc7);
+  41   2          LcdWriteData('C'); 
+  42   2          LcdDisplay(Ds18b20ReadTemp());
+  43   2          Delay1ms(500);
+  44   2            if(RI)
+  45   2          {
+  46   3              RI = 0;
+  47   3              //add your code here!     
+  48   3              recv_data = SBUF;       
+  49   3              LcdDisplay(Ds18b20ReadTemp());
+  50   3              lightControl();
+  51   3              Delay1ms(500);  
+  52   3          }
+  53   2          else
+  54   2             TI = 0;
+  55   2        };
+C51 COMPILER V9.59.0.0   MAIN                                                              06/19/2020 11:43:23 PAGE 2   
+
+  56   1      }
+  57          
+  58          /*******************************************************************************
+  59          * 函数名         : LcdDisplay()
+  60          * 函数功能       : LCD显示读取到的温度
+  61          * 输入           : v
+  62          * 输出           : 无
+  63          *******************************************************************************/
+  64          
+  65          void LcdDisplay(int temp)    //lcd显示
+  66          {
+  67   1          
+  68   1          unsigned char i, datas[] = {0, 0, 0, 0, 0}; //定义数组
+  69   1        float tp;  
+  70   1        if(temp< 0)       //当温度值为负数
+  71   1          {
+  72   2            LcdWriteCom(0xc0);    //写地址 80表示初始地址
+  73   2          SBUF='-';//将接收到的数据放入到发送寄存器
+  74   2          while(!TI);              //等待发送数据完成
+  75   2          TI=0;            //清除发送完成标志位
+  76   2            LcdWriteData('-');      //显示负
+  77   2          //因为读取的温度是实际温度的补码，所以减1，再取反求出原码
+  78   2          temp=temp-1;
+  79   2          temp=~temp;
+  80   2          tp=temp;
+  81   2          temp=tp*0.0625*100+0.5; 
+  82   2          //留两个小数点就*100，+0.5是四舍五入，因为C语言浮点数转换为整型的时候把小数点
+  83   2          //后面的数自动去掉，不管是否大于0.5，而+0.5之后大于0.5的就是进1了，小于0.5的就
+  84   2          //算由?.5，还是在小数点后面。
+  85   2       
+  86   2          }
+  87   1        else
+  88   1          {     
+  89   2            LcdWriteCom(0xc0);    //写地址 80表示初始地址
+  90   2            LcdWriteData('+');    //显示正
+  91   2          SBUF='+';//将接收到的数据放入到发送寄存器
+  92   2          while(!TI);              //等待发送数据完成
+  93   2          TI=0;            //清除发送完成标志位
+  94   2          tp=temp;//因为数据处理有小数点所以将温度赋给一个浮点型变量
+  95   2          //如果温度是正的那么，那么正数的原码就是补码它本身
+  96   2          temp=tp*0.0625*100+0.5; 
+  97   2          //留两个小数点就*100，+0.5是四舍五入，因为C语言浮点数转换为整型的时候把小数点
+  98   2          //后面的数自动去掉，不管是否大于0.5，而+0.5之后大于0.5的就是进1了，小于0.5的就
+  99   2          //算加上0.5，还是在小数点后面。
+ 100   2        }
+ 101   1        datas[0] = temp / 10000;
+ 102   1        datas[1] = temp % 10000 / 1000;
+ 103   1        datas[2] = temp % 1000 / 100;
+ 104   1        datas[3] = temp % 100 / 10;
+ 105   1        datas[4] = temp % 10;
+ 106   1      
+ 107   1        LcdWriteCom(0xc1);      //写地址 80表示初始地址
+ 108   1        LcdWriteData('0'+datas[0]); //百位 
+ 109   1        SBUF = '0'+datas[0];//将接收到的数据放入到发送寄存器
+ 110   1        while (!TI);               //等待发送数据完成
+ 111   1        TI = 0;
+ 112   1        
+ 113   1        LcdWriteCom(0xc2);     //写地址 80表示初始地址
+ 114   1        LcdWriteData('0'+datas[1]); //十位
+ 115   1        SBUF = '0'+datas[1];//将接收到的数据放入到发送寄存器
+ 116   1        while (!TI);               //等待发送数据完成
+ 117   1        TI = 0;
+C51 COMPILER V9.59.0.0   MAIN                                                              06/19/2020 11:43:23 PAGE 3   
+
+ 118   1      
+ 119   1        LcdWriteCom(0xc3);    //写地址 80表示初始地址
+ 120   1        LcdWriteData('0'+datas[2]); //个位 
+ 121   1        SBUF = '0'+datas[2];//将接收到的数据放入到发送寄存器
+ 122   1        while (!TI);               //等待发送数据完成
+ 123   1        TI = 0;
+ 124   1      
+ 125   1        LcdWriteCom(0xc4);    //写地址 80表示初始地址
+ 126   1        LcdWriteData('.');    //显示 ‘.’
+ 127   1        SBUF = '.';//将接收到的数据放入到发送寄存器
+ 128   1        while (!TI);               //等待发送数据完成
+ 129   1        TI = 0;
+ 130   1      
+ 131   1        LcdWriteCom(0xc5);     //写地址 80表示初始地址
+ 132   1        LcdWriteData('0'+datas[3]); //显示小数点  
+ 133   1        SBUF = '0'+datas[3];//将接收到的数据放入到发送寄存器
+ 134   1        while (!TI);               //等待发送数据完成
+ 135   1        TI = 0;
+ 136   1      
+ 137   1        LcdWriteCom(0xc6);     //写地址 80表示初始地址
+ 138   1        LcdWriteData('0'+datas[4]); //显示小数点 
+ 139   1        SBUF = '0'+datas[4];//将接收到的数据放入到发送寄存器
+ 140   1        while (!TI);               //等待发送数据完成
+ 141   1        TI = 0;
+ 142   1        for(i=0; i<6; i++)
+ 143   1        {
+ 144   2          SBUF = CNCHAR[i];//将接收到的数据放入到发送寄存器
+ 145   2          while (!TI);               //等待发送数据完成
+ 146   2          TI = 0;
+ 147   2        }
+ 148   1      
+ 149   1         
+ 150   1      }
+ 151          /*******************************************************************************
+ 152          * 函 数 名         :UsartConfiguration()
+ 153          * 函数功能       :设置串口
+ 154          * 输    入         : 无
+ 155          * 输    出         : 无
+ 156          *******************************************************************************/
+ 157          
+ 158          void UsartConfiguration()
+ 159          {
+ 160   1         TMOD = 0x20;//设置计数器工作方式2
+ 161   1          SCON = 0x50;//设置为工作方式1
+ 162   1          TH1 = 0xFD;
+ 163   1          TL1 = TH1; //计数器初始值设置，注意波特率是9600的
+ 164   1          PCON = 0x00;//波特率不加倍
+ 165   1          EA = 1; //打开总中断
+ 166   1          ES = 1;//打开接收中断
+ 167   1          TR1 = 1;  //打开计数器
+ 168   1      }
+ 169          /*小灯控制装置*/
+ 170          void lightControl()
+ 171          {
+ 172   1          if (recv_data == 'A')
+ 173   1          {
+ 174   2            led2=0;
+ 175   2          }
+ 176   1           else if(recv_data == 'B'){
+ 177   2            led2=1;
+ 178   2          }
+ 179   1      }
+C51 COMPILER V9.59.0.0   MAIN                                                              06/19/2020 11:43:23 PAGE 4   
+
+*** WARNING C316 IN LINE 179 OF main.c: unterminated conditionals
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    512    ----
+   CONSTANT SIZE    =     17    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      7      11
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,40 @@
+C51 COMPILER V9.59.0.0   BLUETOOTH                                                         06/18/2020 09:44:50 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BLUETOOTH
+OBJECT MODULE PLACED IN bluetooth.OBJ
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE bluetooth.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include "bluetooth.h"
+   2          
+   3          void SendOneByte(unsigned char c)
+   4          {
+   5   1          SBUF = c;
+   6   1          while(!TI);
+   7   1          TI = 0;
+   8   1      }
+   9          
+  10          // 发送字符串 
+  11          void uart_send_str(unsigned char *s) 
+  12          { while(*s != '\0')// '\0':字符串结束标志 
+  13   1       { SendOneByte(*s);// 发送 1 个字节数据，1 个字符占 8 位，1 字节 
+  14   2        s++;// 指向下一个字符 
+  15   2       } 
+  16   1      } 
+*** WARNING C316 IN LINE 16 OF bluetooth.c: unterminated conditionals
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     27    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)
